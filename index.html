@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>变形积木识字乐园</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--c:#00D4FF;--p:#FF6B9D;--o:#FF9F43;--v:#A29BFE;--g:#7BED9F;--gold:#FFD700;--bg:#080e1a}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',sans-serif;background:var(--bg);color:#fff}
+body{display:flex;flex-direction:column;position:relative}
+.bg-layer{position:fixed;inset:0;z-index:0;overflow:hidden}
+.bg-layer img{position:absolute;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 2s}
+.bg-layer img.active{opacity:0}
+.bg-layer::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(8,14,26,0.72) 0%,rgba(8,14,26,0.52) 50%,rgba(8,14,26,0.72) 100%);pointer-events:none}
+.float-blocks,.stars-layer{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.sdot{position:absolute;border-radius:50%;background:#fff;animation:tw ease-in-out infinite}
+@keyframes tw{0%,100%{opacity:.05;transform:scale(1)}50%{opacity:.22;transform:scale(1.4)}}
+.fblock{position:absolute;border-radius:8px;animation:fb linear infinite;opacity:.1}
+@keyframes fb{0%{transform:translateY(0) rotate(0deg)}100%{transform:translateY(-120vh) rotate(18deg)}}
+.topbar{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:rgba(0,0,0,0.4);border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;position:relative;z-index:5}
+.logo{font-size:17px;font-weight:bold;background:linear-gradient(135deg,var(--c),var(--p));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stars{display:flex;align-items:center;gap:6px;font-size:20px;color:var(--gold);font-weight:bold}
+.pb{flex:1;max-width:260px;margin:0 12px;height:7px;background:rgba(255,255,255,0.08);border-radius:10px;overflow:hidden}
+.pb .fill{height:100%;border-radius:10px;transition:width .6s;background:linear-gradient(90deg,var(--c),var(--v));width:0}
+.mode{padding:5px 13px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:20px;font-size:12px;color:#fff;cursor:pointer}
+.tip{text-align:center;font-size:13px;color:rgba(255,255,255,0.32);padding:5px 0 3px;flex-shrink:0;position:relative;z-index:5}
+.main{flex:1;display:flex;gap:0;padding:10px 14px 8px;overflow:hidden;position:relative;z-index:5;min-height:0}
+.lcard{flex:0 0 47%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.15);border-radius:22px;padding:14px 12px;position:relative;overflow:hidden;cursor:pointer;transition:border-color .3s}
+.lcard:hover{border-color:rgba(0,212,255,0.38)}
+.bcorner{position:absolute;top:8px;left:10px;display:flex;gap:3px}
+.bc{width:12px;height:12px;border-radius:3px;background:var(--c);opacity:.42;box-shadow:inset -1px -1px 0 rgba(0,0,0,0.2)}
+.bc:nth-child(2){background:var(--p)}.bc:nth-child(3){background:var(--o)}.bc:nth-child(4){background:var(--v)}
+.top-blks{position:absolute;top:8px;right:10px;display:flex;gap:3px}
+.tb{height:18px;min-width:14px;padding:0 4px;border-radius:3px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:bold;color:rgba(255,255,255,0.75);box-shadow:inset -1px -1px 0 rgba(0,0,0,0.2)}
+.errbadge{position:absolute;top:32px;right:10px;background:rgba(255,60,60,0.8);color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;display:none}
+.errbadge.show{display:block}
+.avatar{width:54px;height:54px;border-radius:50%;border:2px solid rgba(0,212,255,0.2);background:rgba(0,212,255,0.08);display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:6px}
+.pinyin{font-size:28px;color:rgba(0,212,255,0.95);letter-spacing:4px;font-weight:300;text-shadow:0 0 18px rgba(0,212,255,0.4)}
+.bigchar{font-size:clamp(100px,17vw,190px);line-height:1;font-weight:900;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 30px rgba(0,212,255,0.28));user-select:none;transition:transform .4s cubic-bezier(.34,1.56,.64,1)}
+.bigchar.pop{animation:cp .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes cp{0%{transform:scale(.5) rotate(-5deg);opacity:0}60%{transform:scale(1.12) rotate(2deg);opacity:1}100%{transform:scale(1) rotate(0)}}
+.phrases{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;justify-content:center;max-width:100%}
+.phrase{padding:8px 18px 6px;background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.22);border-radius:14px;cursor:pointer;transition:all .2s;text-align:center;user-select:none}
+.phrase:hover{background:rgba(0,212,255,0.16);transform:scale(1.04)}
+.phrase .pp{font-size:42px;color:rgba(100,220,255,1);display:block;line-height:1;margin-bottom:4px;text-shadow:0 0 12px rgba(0,212,255,0.85)}
+.phrase .pw{font-size:72px;color:#fff;font-weight:700;letter-spacing:2px;line-height:1}
+.speakbtn{margin-top:8px;display:flex;align-items:center;gap:5px;padding:6px 18px;background:rgba(0,212,255,0.09);border:1px solid rgba(0,212,255,0.25);border-radius:22px;color:var(--c);font-size:13px;cursor:pointer;transition:all .2s}
+.speakbtn:hover{background:rgba(0,212,255,0.18);transform:scale(1.05)}
+.div{width:1px;margin:0 8px;background:linear-gradient(to bottom,transparent,rgba(255,255,255,0.08),transparent);flex-shrink:0}
+.rcard{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,107,157,0.04);border:1px solid rgba(255,107,157,0.15);border-radius:22px;padding:18px 18px;position:relative;overflow:hidden}
+.rlabel{position:absolute;top:12px;right:14px;font-size:11px;color:rgba(255,107,157,0.5)}
+.rchar{font-size:clamp(48px,7vw,70px);line-height:1;margin-bottom:12px;-webkit-text-fill-color:transparent;animation:su .4s ease;font-weight:900}
+@keyframes su{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+.stext{font-size:clamp(28px,4.5vw,42px);line-height:2.4;letter-spacing:2px;color:rgba(255,255,255,0.92);text-align:center;max-width:100%;animation:su .5s ease .1s both;cursor:pointer;transition:background .2s;padding:8px 20px;border-radius:10px}
+.stext:hover{background:rgba(255,255,255,0.06)}
+.stext .hl{color:var(--p);font-weight:bold;text-decoration:underline;text-decoration-color:rgba(255,107,157,0.45);text-underline-offset:3px}
+.listenbtn{margin-top:16px;padding:12px 28px;background:linear-gradient(135deg,var(--p),var(--v));border:none;border-radius:30px;color:#fff;font-size:15px;font-weight:bold;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:9px;box-shadow:0 4px 22px rgba(255,107,157,0.35)}
+.listenbtn:hover{transform:scale(1.07);box-shadow:0 6px 28px rgba(255,107,157,0.5)}
+.listenbtn.on{animation:mo 1s infinite;box-shadow:0 4px 38px rgba(255,107,157,0.65)}
+@keyframes mo{0%,100%{box-shadow:0 4px 22px rgba(255,107,157,0.35)}50%{box-shadow:0 4px 48px rgba(255,107,157,0.7)}}
+.lstatus{margin-top:7px;font-size:12px;color:rgba(255,255,255,0.32);text-align:center;min-height:16px;min-width:160px;transition:color .3s}
+/* 实时识别文字显示 */
+.lstatus.listening{color:var(--c)}
+.lstatus.match{color:var(--g);font-weight:bold}
+.lstatus.no-match{color:var(--p)}
+/* 波浪动画（麦克风激活时） */
+.wave-ring{position:absolute;inset:0;border-radius:30px;border:2px solid var(--p);opacity:0;pointer-events:none}
+.wave-ring.active{animation:wring 1.2s ease-out infinite}
+@keyframes wring{0%{opacity:.6;transform:scale(1)}100%{opacity:0;transform:scale(1.4)}}
+.botbar{height:136px;display:flex;align-items:center;justify-content:center;gap:20px;padding:0 14px;background:rgba(0,0,0,0.35);border-top:1px solid rgba(255,255,255,0.05);flex-shrink:0;position:relative;z-index:5}
+.nbtn{width:52px;height:52px;border-radius:50%;border:none;background:rgba(255,255,255,0.07);color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.nbtn:hover{transform:scale(1.12);background:rgba(255,255,255,0.13)}
+.nbtn.disabled{opacity:.22;pointer-events:none}
+.mbtn{width:120px;height:120px;border-radius:50%;border:2.5px solid rgba(0,212,255,0.35);background:linear-gradient(135deg,rgba(0,212,255,0.1),rgba(162,155,254,0.1));color:var(--c);font-size:48px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;box-shadow:0 0 28px rgba(0,212,255,0.18);position:relative}
+.mbtn:hover{transform:scale(1.1);border-color:var(--c);box-shadow:0 0 42px rgba(0,212,255,0.3)}
+.mbtn.on{border-color:var(--p);color:var(--p);animation:mo 1s infinite;box-shadow:0 0 42px rgba(255,107,157,0.45)}
+.ccount{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(255,255,255,0.22);letter-spacing:1px}
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);padding:20px 40px;border-radius:20px;font-size:22px;font-weight:bold;z-index:2000;transition:transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap}
+.toast.show{transform:translate(-50%,-50%) scale(1)}
+.toast.ok{background:linear-gradient(135deg,var(--gold),var(--o));color:#222;box-shadow:0 8px 50px rgba(255,215,0,0.55)}
+.toast.ng{background:rgba(255,60,60,0.92);color:#fff;box-shadow:0 8px 50px rgba(255,60,60,0.45)}
+.burst{position:fixed;inset:0;pointer-events:none;z-index:1000;display:none}
+.burst.on{display:block}
+.sp{position:absolute;font-size:30px;animation:sf 1.3s ease-out forwards}
+@keyframes sf{0%{opacity:1;transform:scale(0) translateY(0)}30%{opacity:1;transform:scale(1.4) translateY(-30px)}100%{opacity:0;transform:scale(.6) translateY(-200px)}}
+.flip{animation:fl .45s cubic-bezier(.34,1.56,.64,1)}
+@keyframes fl{0%{transform:rotateY(88deg) scale(.85);opacity:0}100%{transform:rotateY(0) scale(1);opacity:1}}
+.elbtn{position:fixed;bottom:98px;right:16px;width:48px;height:48px;border-radius:50%;background:rgba(255,60,60,0.8);border:none;font-size:20px;color:#fff;cursor:pointer;z-index:100;transition:all .2s;box-shadow:0 4px 16px rgba(255,60,60,0.3)}
+.elbtn:hover{transform:scale(1.12)}
+.elbtn .bd{position:absolute;top:-5px;right:-5px;background:#ff4444;color:#fff;font-size:11px;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold}
+.mictip{position:fixed;bottom:152px;left:50%;transform:translateX(-50%);background:rgba(0,212,255,0.14);border:1px solid rgba(0,212,255,0.28);color:var(--c);padding:7px 18px;border-radius:18px;font-size:12px;z-index:100;display:none;white-space:nowrap}
+.mictip.show{display:block}
+/* tts加载指示器 */
+.tts-bubble{position:fixed;top:65px;left:50%;transform:translateX(-50%);background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.3);color:var(--c);padding:5px 16px;border-radius:14px;font-size:12px;z-index:100;display:none;white-space:nowrap;transition:opacity .3s}
+.tts-bubble.show{display:block}
+/* 语音诊断面板 */
+.sr-diag{position:fixed;top:55px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.92);border:1px solid rgba(255,215,0,0.4);border-radius:16px;padding:14px 22px;z-index:600;font-size:13px;color:#fff;display:none;min-width:340px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.6)}
+.sr-diag.show{display:block}
+.sr-diag h3{color:#FFD700;font-size:15px;margin-bottom:10px}
+.sr-diag .drow{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.06);gap:20px}
+.sr-diag .drow:last-child{border:none}
+.sr-diag .dl{color:rgba(255,255,255,0.5)}
+.sr-diag .dv{color:#7BED9F;font-weight:bold}
+.sr-diag .dv.err{color:#FF6B9D}
+.sr-diag .dv.warn{color:#FF9F43}
+.sr-diag .dv.ok{color:#7BED9F}
+.ep{position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:500;display:none;flex-direction:column;align-items:center;padding:18px}
+.ep.open{display:flex}
+.eph{font-size:20px;color:#FF6B6B;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.el{flex:1;width:100%;max-width:740px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:10px}
+.ei{display:flex;align-items:center;gap:14px;background:rgba(255,60,60,0.07);border:1px solid rgba(255,60,60,0.17);border-radius:14px;padding:9px 16px;cursor:pointer;transition:all .2s}
+.ei:hover{background:rgba(255,60,60,0.13);transform:scale(1.01)}
+.ei .ec{font-size:34px;font-weight:900}
+.ei .en{font-size:19px;color:#fff}
+.ei .epy{font-size:12px;color:rgba(0,212,255,0.72)}
+.ei .ef{font-size:11px;color:rgba(255,80,80,0.58)}
+.closebtn{margin-top:10px;padding:8px 26px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:22px;color:#fff;font-size:14px;cursor:pointer}
+.noerr{color:rgba(255,255,255,0.36);font-size:16px;margin-top:50px}
+/* 套数选择器 */
+.set-selector{display:flex;gap:5px;align-items:center;margin-left:8px}
+.set-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;font-size:13px;font-weight:bold;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center}
+.set-btn:hover{border-color:rgba(0,212,255,0.5);background:rgba(0,212,255,0.1)}
+.set-btn.active{border-color:var(--c);background:rgba(0,212,255,0.18);color:var(--c);box-shadow:0 0 12px rgba(0,212,255,0.3)}
+@media(max-width:680px){
+  .main{flex-direction:column;padding:8px}
+  .lcard{flex:0 0 auto;min-height:44vh}
+  .div{width:100%;height:1px;margin:6px 0}
+  .rcard{flex:1}
+  .pb{max-width:120px}
+  .set-btn{width:26px;height:26px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div class="bg-layer" id="bgL">
+  <img id="bi0" src="assets/11.jpg" alt="">
+  <img id="bi1" src="assets/12.jpeg" alt="">
+</div>
+<div class="float-blocks" id="fb"></div>
+<div class="stars-layer" id="sl"></div>
+<div class="toast" id="toast"></div>
+<div class="burst" id="burst"></div>
+<div class="mictip" id="mictip">🎤 对准麦克风，朗读左边的大字！</div>
+<div class="tts-bubble" id="ttsBubble">🔊 播放中…</div>
+
+<!-- 语音诊断面板 -->
+<div class="sr-diag" id="srDiag">
+  <h3>🔍 语音识别诊断</h3>
+  <div class="drow"><span class="dl">浏览器</span><span class="dv" id="ddBrowser">—</span></div>
+  <div class="drow"><span class="dl">SpeechRecognition</span><span class="dv" id="ddSR">—</span></div>
+  <div class="drow"><span class="dl">麦克风设备</span><span class="dv" id="ddMic">检测中…</span></div>
+  <div class="drow"><span class="dl">最近错误</span><span class="dv err" id="ddErr">无</span></div>
+  <div class="drow"><span class="dl">识别状态</span><span class="dv warn" id="ddState">未启动</span></div>
+</div>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="logo">变形积木识字乐园</div>
+    <div class="set-selector" id="setSelector"></div>
+  </div>
+  <div class="pb"><div class="fill" id="pfill"></div></div>
+  <div class="stars"><span>⭐</span><span id="sc">0</span></div>
+  <button class="mode" id="mbtn" onclick="tMode()">🔀 随机</button>
+</div>
+<div class="tip">👆 换卡片自动读汉字→词语→句子，点🎤朗读！答对奖励⭐ | 麦克风请允许权限</div>
+
+<div class="main">
+  <div class="lcard" id="lcard" onclick="speakChar()">
+    <div class="bcorner"><div class="bc"></div><div class="bc"></div><div class="bc"></div><div class="bc"></div></div>
+    <div class="top-blks" id="tbs"></div>
+    <div class="errbadge" id="ebadge">❌ 复习</div>
+    <div class="avatar" id="avatar">🤖</div>
+    <div class="pinyin" id="py">pīn yīn</div>
+    <div class="bigchar" id="bc">字</div>
+    <div class="phrases" id="ph"></div>
+    <div class="speakbtn" onclick="event.stopPropagation();speakChar()"><span>🔊</span><span>听发音</span></div>
+  </div>
+  <div class="div"></div>
+  <div class="rcard" id="rcard">
+    <div class="rlabel">📖 造句</div>
+    <div class="rchar" id="rc">机</div>
+    <div class="stext" id="st" onclick="speakSentence()">点此听造句</div>
+    <button class="listenbtn" id="lbtn" onclick="tgl()"><span>🎤</span><span id="ll">我读完了！</span><div class="wave-ring" id="wring"></div></button>
+    <div class="lstatus" id="lst"></div>
+  </div>
+</div>
+
+<div class="botbar">
+  <button class="nbtn" id="pbtn" onclick="prev()">⬅️</button>
+  <button class="mbtn" id="mbtn2" onclick="tgl()">🎤</button>
+  <button class="nbtn" id="nbtn" onclick="next()">➡️</button>
+  <span class="ccount" id="cc">1 / 80</span>
+</div>
+
+<button class="elbtn" id="elbtn" onclick="openEl()">📝<span class="bd" id="elbd">0</span></button>
+<div class="ep" id="ep">
+  <div class="eph">📝 错题本（共 <span id="elcnt">0</span> 个）</div>
+  <div class="el" id="elist"></div>
+  <button class="closebtn" onclick="closeEl()">关闭</button>
+</div>
+
+<script>
+// ============================================================
+//  6套数据（从 blocks-data.json 加载，每套50字）
+// ============================================================
+let allSets=[];   // 全部6套
+let D=[];         // 当前套
+let curSet=1;
+
+// 加载字库
+// 改用 XMLHttpRequest（Edge 兼容性优于 fetch）
+function loadSets(){
+  const xhr=new XMLHttpRequest();
+  xhr.open('GET','blocks-data.json',true);
+  xhr.onreadystatechange=()=>{
+    if(xhr.readyState!==4) return;
+    if(xhr.status===200){
+      try{
+        const data=JSON.parse(xhr.responseText);
+        allSets=data.sets||data;
+        if(!Array.isArray(allSets)||allSets.length===0){alert('字库加载失败');return}
+        switchSet(1);
+      }catch(e){alert('字库解析失败: '+e)}
+    } else {
+      alert('字库加载失败: HTTP '+xhr.status);
+    }
+  };
+  xhr.onerror=()=>alert('字库加载失败: 网络错误');
+  xhr.send();
+}
+
+// 切换套数
+function switchSet(n){
+  cancelPendingSpeeches(); // 切换套前取消所有旧声音
+  curSet=n;
+  const raw=allSets[n-1]?allSets[n-1].chars:allSets[0].chars;
+  // 兼容旧字段名（w.w, w.c, w.p 等）→ 转换一次
+  D=raw.map(w=>({
+    c:w.char||'',
+    p:w.pinyin||'',
+    w:(w.word||[]).map(x=>typeof x==='string'?{w:x,p:''}:x),
+    s:w.sentence||'',
+    e:w.emoji||w.char||'',
+    bc:w.blockColor||'#00D4FF'
+  }));
+  buildCharMap();
+  score=0;
+  idx=0;
+  $('#sc').textContent=0;
+  $('#pfill').style.width='0%';
+  buildSetBtns();
+  render(0);
+  // 首次加载也要自动朗读：3遍汉字 → 全部词语 → 句子
+  pendingSpeeches.push(setTimeout(()=>autoSpeak(), 400));
+  // 同步切换背景图
+  switchBgForSet(n);
+}
+
+// 生成套数按钮
+function buildSetBtns(){
+  const el=$('#setSelector');
+  el.innerHTML='';
+  allSets.forEach((_,i)=>{
+    const b=document.createElement('button');
+    b.className='set-btn'+(i+1===curSet?' active':'');
+    b.textContent=i+1;
+    b.onclick=()=>switchSet(i+1);
+    el.appendChild(b);
+  });
+}
+
+let idx=0, stars=parseInt(localStorage.getItem('lsS')||'0');
+let score=0;
+let errLib=JSON.parse(localStorage.getItem('lsE')||'{}');
+let learned=JSON.parse(localStorage.getItem('lsL')||'{}');
+let randomMode=true, onL=false, rec=null;
+let bgN=0, bgTimer=null;
+const $=s=>document.querySelector(s);
+
+// ============================================================
+//  TTS：优先用浏览器自带（无延迟），备选云TTS
+//  浏览器 SpeechSynthesis 是最重要的，因为它无延迟
+// ============================================================
+let cVoice=null;
+
+// 跟踪 autoSpeak 的所有 pending setTimeout，避免旧卡片的声音干扰新卡片
+let pendingSpeeches=[];
+let currentSeqId=0; // seqId 递增使旧 onend 回调失效
+function cancelPendingSpeeches(){
+  pendingSpeeches.forEach(id=>clearTimeout(id));
+  pendingSpeeches=[];
+  currentSeqId++; // 递增，废弃所有旧的 onend 回调
+  try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}
+}
+
+// ============================================================
+//  字 → 拼音 查找表（从当前套构建，支持词语区域双字注音）
+// ============================================================
+let charMap={};
+function buildCharMap(){
+  charMap={};
+  D.forEach(w=>{ if(w.c) charMap[w.c]=w.p||''; });
+}
+function getPinyinForChar(ch){
+  return charMap[ch]||'';
+}
+
+// 初始化语音（预加载中文语音，优先选可爱童声）
+function initTTS(){
+  if(!window.speechSynthesis) return;
+  const tryLoad=()=>{
+    const vs=window.speechSynthesis.getVoices();
+    if(vs.length>0){
+      // 优先找可爱的中文童声（按声音年轻度/可爱度排序）
+      const prefs=[
+        // 微软自然童声（Edge 自带，声音最温柔自然）
+        v=>v.name.includes('Aria')&&(v.lang.startsWith('zh')||v.lang.includes('CN')),
+        // 幼教温柔女声
+        v=>v.name.includes('Xiaoxiao')&&(v.lang.startsWith('zh')||v.lang.includes('CN')),
+        // 柔和女声
+        v=>v.name.includes('Huaiting')&&(v.lang.startsWith('zh')||v.lang.includes('CN')),
+        // 小女孩声音（若有）
+        v=>v.name.includes('Yaoyao')&&(v.lang.startsWith('zh')||v.lang.includes('CN')),
+        v=>v.name.includes('Yunyang')&&(v.lang.startsWith('zh')||v.lang.includes('CN')),
+        // 备选：任意年轻女声
+        v=>v.name.includes('XiaoCortana')||v.name.includes('Huihui'),
+        v=>v.name.includes('XiaoYi')||v.name.includes('Kangkang'),
+        // 兜底：任何中文语音
+        v=>v.lang.startsWith('zh')||v.lang.includes('CN'),
+      ];
+      for(const fn of prefs){
+        const found=vs.find(fn);
+        if(found){cVoice=found;console.log('[TTS已选语音]',found.name,found.lang);return}
+      }
+      cVoice=vs[0];
+    }
+  };
+  tryLoad();
+  if(window.speechSynthesis.onvoiceschanged!==undefined){
+    window.speechSynthesis.onvoiceschanged=()=>tryLoad();
+  }
+  setTimeout(()=>{try{window.speechSynthesis.getVoices();tryLoad()}catch(e){}},400);
+  // 列出所有可用中文语音到控制台，方便调试
+  setTimeout(()=>{
+    const vs=window.speechSynthesis.getVoices();
+    const zh=vs.filter(v=>v.lang.startsWith('zh')||v.lang.includes('CN'));
+    console.log('[TTS可用中文语音]', zh.map(v=>v.name+'('+v.lang+')').join(', ')||'无');
+  },800);
+}
+
+// 显示TTS状态气泡
+function showBubble(msg,dur=1500){
+  const b=$('#ttsBubble');
+  b.textContent=msg;b.classList.add('show');
+  clearTimeout(b._t);
+  b._t=setTimeout(()=>b.classList.remove('show'),dur);
+}
+
+// 核心播放函数
+// text=要读的文字，showMsg=是否显示气泡，force=是否打断当前播放，rate=语速(默认0.75)
+function speak(text, showMsg=true, force=true, rate=0.75){
+  if(!window.speechSynthesis){if(showMsg)showBubble('⚠️ 浏览器不支持语音',2000);return}
+  if(force) try{window.speechSynthesis.cancel()}catch(e){}
+  // 如果 cVoice 还没加载好，尝试重新找一次
+  if(!cVoice){
+    const vs=window.speechSynthesis.getVoices();
+    const zh=['Aria','Xiaoxiao','Huaiting','Yaoyao','Yunyang'].find(n=>
+      vs.find(v=>v.name.includes(n)&&(v.lang.startsWith('zh')||v.lang.includes('CN')))
+    );
+    if(zh) cVoice=vs.find(v=>v.name.includes(zh));
+    if(!cVoice) cVoice=vs.find(v=>v.lang.startsWith('zh')||v.lang.includes('CN'))||vs[0];
+  }
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='zh-CN';
+  u.rate=rate;
+  u.pitch=1.15;
+  u.volume=1;
+  if(cVoice) u.voice=cVoice;
+  if(showMsg){
+    u.onstart=()=>showBubble('🔊 '+text.slice(0,8)+(text.length>8?'…':''));
+    u.onend=()=>{};
+    u.onerror=e=>{
+      const msg=e.error==='audio-unavailable'?'⚠️ 音频未就绪，请重试':'⚠️ 朗读失败';
+      showBubble(msg,2500);
+    };
+  }
+  try{window.speechSynthesis.speak(u)}catch(e){if(showMsg)showBubble('⚠️ 朗读引擎异常',2000)}
+}
+
+// 点大汉字读发音（字 + 全部词语，一句话连读——最快最流畅）
+function speakChar(){
+  const w=D[idx];
+  const allWords=w.w.map(item=>item.w).join('，');
+  speak(w.c+'，'+allWords); // 一次性播放，无停顿最流畅
+  // 大字弹跳动画
+  const bc=$('#bc');
+  bc.classList.remove('pop');void bc.offsetWidth;bc.classList.add('pop');
+  setTimeout(()=>bc.classList.remove('pop'),600);
+}
+
+// 点词语卡片读词语
+function speakWord(word){
+  speak(word, true);
+}
+
+// 点造句读整句
+function speakSentence(){
+  const w=D[idx];
+  speak(w.s, true);
+  const st=$('#st');
+  st.style.background='rgba(255,107,157,0.1)';
+  setTimeout(()=>st.style.background='',400);
+}
+
+// 自动朗读：切换卡片后触发，链式 onend 大字→[200ms]→词语1→词语2→词语3→句子
+// Edge 修复：只在序列开始时 cancel 一次，后续 utterance 直接入队，不重复 cancel
+function autoSpeak(){
+  cancelPendingSpeeches();
+  try{window.speechSynthesis&&window.speechSynthesis.cancel()}catch(e){}
+
+  const w=D[idx];
+  const seqId=++currentSeqId;
+  const wordCount=w.w?w.w.length:0;
+  let step=0;
+
+  // 确保 cVoice 可用
+  function ensureVoice(){
+    if(cVoice) return;
+    const vs=window.speechSynthesis.getVoices();
+    const zh=['Aria','Xiaoxiao','Huaiting','Yaoyao','Yunyang'].find(n=>
+      vs.find(v=>v.name.includes(n)&&(v.lang.startsWith('zh')||v.lang.includes('CN')))
+    );
+    if(zh) cVoice=vs.find(v=>v.name.includes(zh));
+    if(!cVoice) cVoice=vs.find(v=>v.lang.startsWith('zh')||v.lang.includes('CN'))||vs[0];
+  }
+
+  // Edge 关键：不在此处 cancel，直接入队，让浏览器自然排队
+  function nextUtterance(text, rate, onDone){
+    if(seqId!==currentSeqId) return;
+    if(!window.speechSynthesis) return;
+    ensureVoice();
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang='zh-CN';u.rate=rate;u.pitch=1.15;u.volume=1;
+    if(cVoice) u.voice=cVoice;
+    u.onstart=()=>{
+      if(seqId!==currentSeqId) return;
+      showBubble('🔊 '+text.slice(0,8)+(text.length>8?'…':''));
+    };
+    u.onend=()=>{
+      if(seqId===currentSeqId) onDone();
+    };
+    u.onerror=()=>{ if(seqId===currentSeqId) onDone(); };
+    try{window.speechSynthesis.speak(u)}catch(e){}
+  }
+
+  function run(){
+    if(seqId!==currentSeqId) return;
+    if(step===0){
+      nextUtterance(w.c, 0.88, ()=>{ step++; setTimeout(run, 200); });
+    } else if(step<=wordCount){
+      nextUtterance(w.w[step-1].w, 0.88, ()=>{ step++; setTimeout(run, 0); });
+    } else if(step===wordCount+1){
+      nextUtterance(w.s, 0.75, ()=>{ step++; });
+    }
+  }
+  run();
+}
+
+// ============================================================
+//  语音识别（Web Speech API，continuous 模式）
+// ============================================================
+let interimText=''; // 实时中间结果
+let lastSRErr='';   // 最近一次错误
+
+// ============================================================
+//  语音识别诊断工具
+// ============================================================
+function initSRDiag(){
+  // 填充浏览器信息
+  const ua=navigator.userAgent;
+  const chrome=ua.match(/Chrome\/([\d.]+)/);
+  const edge=ua.match(/Edg\/([\d.]+)/);
+  let browser='未知';
+  if(edge) browser='Edge '+edge[1];
+  else if(chrome) browser='Chrome '+chrome[1];
+  $('#ddBrowser').textContent=browser;
+
+  // 填充 SpeechRecognition 支持情况
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(SR){
+    $('#ddSR').textContent='✅ 支持';$('#ddSR').className='dv ok';
+  } else {
+    $('#ddSR').textContent='❌ 不支持';$('#ddSR').className='dv err';
+  }
+
+  // 枚举麦克风设备
+  if(navigator.mediaDevices&&navigator.mediaDevices.enumerateDevices){
+    navigator.mediaDevices.enumerateDevices().then(devs=>{
+      const mics=devs.filter(d=>d.kind==='audioinput');
+      if(mics.length===0){
+        $('#ddMic').textContent='❌ 未检测到';$('#ddMic').className='dv err';
+      } else {
+        $('#ddMic').textContent='✅ '+mics.length+'个设备';$('#ddMic').className='dv ok';
+        console.log('[麦克风]', mics.map(m=>m.label||('设备'+m.deviceId.slice(0,8))).join(', '));
+      }
+    }).catch(()=>{
+      $('#ddMic').textContent='⚠️ 无法枚举';$('#ddMic').className='dv warn';
+    });
+  } else {
+    $('#ddMic').textContent='⚠️ 无设备API';$('#ddMic').className='dv warn';
+  }
+}
+
+function showSRDiag(){
+  const el=$('#srDiag');
+  el.classList.add('show');
+  // 更新错误信息
+  if(lastSRErr){
+    $('#ddErr').textContent=lastSRErr;$('#ddErr').className='dv err';
+  }
+  // 3秒后自动隐藏
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('show'),4000);
+}
+function hideSRDiag(){$('#srDiag').classList.remove('show')}
+function updateSRState(s){
+  $('#ddState').textContent=s;
+  $('#ddState').className=s.includes('启动')||s.includes('监听')?'dv ok':'dv warn';
+}
+
+function tgl(){
+  if(onL){stopL();return}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){
+    lastSRErr='浏览器不支持';
+    $('#ddErr').textContent='浏览器不支持';$('#ddErr').className='dv err';
+    showSRDiag();
+    showT('请用 Chrome 或 Edge 浏览器！','ng');return
+  }
+  showSRDiag();
+  startRecognition();
+}
+
+function startRecognition(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  // 启动前先检查麦克风设备
+  if(navigator.mediaDevices&&navigator.mediaDevices.enumerateDevices){
+    navigator.mediaDevices.enumerateDevices().then(devs=>{
+      const mics=devs.filter(d=>d.kind==='audioinput');
+      console.log('[麦克风设备]', mics.length+'个', mics.map(d=>d.label||'设备'+d.deviceId.slice(0,6)).join(', '));
+      if(mics.length===0) console.warn('[警告] 未检测到麦克风设备！');
+    }).catch(e=>console.log('[设备枚举失败]',e.message));
+  }
+  try{
+    console.log('[语音识别] startRecognition() 被调用');
+    rec=new SR();
+    rec.lang='zh-CN';
+    rec.continuous=true;       // 持续听，不用每次重开
+    rec.interimResults=true;   // 返回中间结果
+    rec.maxAlternatives=1;
+
+    rec.onstart=()=>{
+      console.log('[语音识别] ✅ onstart 触发！麦克风正在监听');
+      updateSRState('🎤 正在监听…');
+      const lst=$('#lst');
+      lst.textContent='🎤 请朗读…';lst.className='lstatus listening';
+    };
+
+    // 实时结果更新
+    rec.onresult=e=>{
+      let finalTx='';interimText='';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const t=e.results[i][0].transcript;
+        if(e.results[i].isFinal) finalTx+=t;
+        else interimText+=t;
+      }
+      const display=finalTx||interimText;
+      const lst=$('#lst');
+      lst.textContent='你说：'+display;
+      lst.className='lstatus listening';
+      updateSRState('📝 识别中…');
+      // 一旦有最终结果，立刻校验
+      if(finalTx) setTimeout(()=>check(finalTx.trim()),100);
+    };
+
+    rec.onend=()=>{
+      updateSRState('⏹ 已结束（'+(onL?'异常':'正常')+'）');
+      if(!onL){setBtn(false);return}
+      // 意外断开：在 onL=true 时 end，说明是异常断开了（不是用户点停止）
+      // 延迟自动重连一次
+      const prevRec=rec;
+      setTimeout(()=>{
+        if(onL&&rec===prevRec){
+          updateSRState('🔄 正在重连…');
+          try{rec.start()}catch(er){}
+        }
+      },800);
+    };
+
+    rec.onerror=e=>{
+      const err=e.error;
+      lastSRErr=err;
+      $('#ddErr').textContent=err;$('#ddErr').className='dv err';
+      updateSRState('❌ 出错: '+err);
+      showSRDiag();
+      console.error('[语音识别错误]', err, e.message||'');
+      // 这些错误不需要重试
+      if(err==='not-allowed'||err==='service-not-allowed'||err==='audio-capture'){
+        onL=false;setBtn(false);
+        const msg={
+          'not-allowed':'请允许麦克风权限',
+          'service-not-allowed':'语音服务被拦截，请用Chrome/Edge',
+          'audio-capture':'找不到麦克风，请检查设备'
+        }[err]||'麦克风出错';
+        const lst=$('#lst');
+        lst.textContent=msg;lst.className='lstatus no-match';
+        setTimeout(()=>{if(!onL){lst.textContent='';lst.className='lstatus'}},4000);
+        return;
+      }
+      // 其他错误（no-speech / network）：认为是短暂问题，显示提示后重试
+      onL=false;
+      setBtn(false);
+      const msg={
+        'no-speech':'没听到声音，请对准麦克风朗读',
+        'network':'网络错误，请检查网络',
+        'aborted':'已取消'
+      }[err]||('识别出错：'+err);
+      const lst=$('#lst');
+      lst.textContent=msg;lst.className='lstatus no-match';
+      setTimeout(()=>{if(!onL){lst.textContent='';lst.className='lstatus'}},3000);
+      // 重试一次（延迟2秒后重新启动）
+      const prevRec=rec;
+      setTimeout(()=>{
+        if(!onL&&rec===prevRec) startRecognition();
+      },2000);
+    };
+
+    console.log('[语音识别] 调用 rec.start()…');
+    rec.start();
+    console.log('[语音识别] ✅ rec.start() 成功！');
+    onL=true;
+    setBtn(true);
+    // 状态文字在 onstart 回调里设置
+  }catch(e){
+    console.error('[语音识别] ❌ rec.start() 抛出异常：', e);
+    onL=false;setBtn(false);
+    showT('启动失败：'+e.message,'ng');
+  }
+}
+
+function stopL(){
+  if(rec&&onL){
+    onL=false;
+    try{rec.stop()}catch(e){}
+    setBtn(false);
+  }
+}
+
+function setBtn(v){
+  const lb=$('#lbtn'),mb=$('#mbtn2'),wr=$('#wring'),lst=$('#lst');
+  if(v){
+    lb.classList.add('on');mb.classList.add('on');$('#ll').textContent='停止';
+    $('#mictip').classList.add('show');
+    if(wr) wr.classList.add('active');
+  } else {
+    lb.classList.remove('on');mb.classList.remove('on');$('#ll').textContent='我读完了！';
+    $('#mictip').classList.remove('show');
+    if(wr) wr.classList.remove('active');
+    if(lst&&!lst.textContent.includes('你说：')) lst.textContent='';
+    lst.className='lstatus';
+  }
+}
+
+// ============================================================
+//  识别校验（容错：支持同音字/相近音）
+// ============================================================
+const VARTS={
+  '零':['零','灵'],'一':['一','衣'],'二':['二','饿'],'三':['三','山'],
+  '四':['四','寺'],'五':['五','午'],'六':['六','陆','溜'],
+  '七':['七','期'],'八':['八','吧'],'九':['九','久'],
+  '变':['变'],'吊':['吊'],'机':['机','鸡'],'战':['战','站'],'箭':['箭'],
+  '挖':['挖'],'坦':['坦'],'克':['克'],'直':['直'],'升':['升'],
+  '炮':['炮'],'侦':['侦'],'探':['探'],'器':['器'],'运':['运'],
+  '输':['输'],'装':['装'],'甲':['甲'],'重':['重'],'组':['组'],
+  '农':['农'],'工':['工'],'程':['程'],'搭':['搭'],'合':['合'],
+  '智':['智'],'慧':['慧'],'友':['友'],'爱':['爱'],
+  '勇':['勇'],'敢':['敢'],'诚':['诚'],'信':['信'],
+  '勤':['勤'],'乐':['乐','了'],'思':['思'],'梦':['梦'],
+  '光':['光'],'星':['星'],'家':['家'],'好':['好'],
+  '学':['学'],'习':['习'],'快':['快'],'慢':['慢'],
+  '新':['新'],'奇':['奇'],'妙':['妙'],'力':['力'],
+  '量':['量'],'创':['创'],'造':['造'],'团':['团'],
+  '队':['队'],'坚':['坚'],'守':['守'],'进':['进'],
+  '步':['步'],'自':['自'],'由':['由'],'理':['理'],
+  '想':['想'],'做':['做'],'开':['开'],'心':['心'],
+  '放':['放'],'飞':['飞'],'彩':['彩'],'成':['成'],'长':['长']
+};
+
+function check(text){
+  const w=D[idx];
+  const v=VARTS[w.c]||[w.c];
+  const clean=text.replace(/[.。!！?？,,，、\s]/g,'');
+  const ok=v.some(x=>clean===x||clean.includes(x));
+  const lst=$('#lst');
+  if(ok){
+    stars++;localStorage.setItem('lsS',stars);$('#sc').textContent=stars;
+    delete errLib[w.c];localStorage.setItem('lsE',JSON.stringify(errLib));
+    learned[w.c]=true;localStorage.setItem('lsL',JSON.stringify(learned));
+    updProg();elBadge();
+    lst.textContent='✅ '+clean;lst.className='lstatus match';
+    showT('⭐ 太棒了！','ok');burst();
+    stopL();
+    cancelPendingSpeeches(); // 取消旧卡片的 autoSpeak，防止声音乱窜
+    setTimeout(()=>next(),1100);
+  } else {
+    errLib[w.c]=(errLib[w.c]||0)+1;localStorage.setItem('lsE',JSON.stringify(errLib));
+    elBadge();
+    lst.textContent='你说的是："'+clean+'"，再读一次！';
+    lst.className='lstatus no-match';
+    showT('再读一次，加油！','ng');
+    setTimeout(()=>{lst.textContent='';lst.className='lstatus'},2500);
+  }
+}
+
+// ============================================================
+//  渲染界面
+// ============================================================
+function render(i){
+  const w=D[i];
+  const lc=$('#lcard'),rc=$('#rcard');
+  lc.classList.remove('flip');rc.classList.remove('flip');
+  void lc.offsetWidth;lc.classList.add('flip');rc.classList.add('flip');
+  $('#avatar').textContent=w.e;
+  $('#py').textContent=w.p;
+  $('#bc').textContent=w.c;
+  $('#bc').style.background=`linear-gradient(160deg,#fff 38%,${w.bc} 100%)`;
+  $('#bc').style.webkitBackgroundClip='text';
+  $('#bc').style.webkitTextFillColor='transparent';
+
+  // 词语（每词可点读，直接用JSON中已有的完整拼音）
+  const ph=$('#ph');ph.innerHTML='';
+  w.w.forEach(item=>{
+    const d=document.createElement('div');d.className='phrase';
+    // item = {w: '词语', p: 'yī gè'}，直接用 item.p 显示完整拼音
+    d.innerHTML=`<span class="pp">${item.p||''}</span><span class="pw">${item.w}</span>`;
+    d.onclick=e=>{e.stopPropagation();speakWord(item.w)};
+    ph.appendChild(d);
+  });
+
+  // 顶部积木
+  const tbs=$('#tbs');tbs.innerHTML='';
+  for(let i=0;i<3;i++){
+    const b=document.createElement('div');b.className='tb';
+    b.style.background=w.bc;b.textContent=w.c[i%w.c.length]||w.c;
+    tbs.appendChild(b);
+  }
+
+  const s=w.s.replace(w.c,`<span class="hl">${w.c}</span>`);
+  $('#rc').textContent=w.c;
+  $('#rc').style.background=`linear-gradient(160deg,#fff,${w.bc} 100%)`;
+  $('#rc').style.webkitBackgroundClip='text';$('#rc').style.webkitTextFillColor='transparent';
+  $('#st').innerHTML=s;
+  $('#cc').textContent=(i+1)+' / '+D.length;
+  $('#ebadge').classList.toggle('show',!!errLib[w.c]);
+  $('#pbtn').classList.toggle('disabled',i===0&&!randomMode);
+  // 重置识别状态
+  const lst=$('#lst');
+  if(!onL){lst.textContent='';lst.className='lstatus'}
+}
+
+function next(){
+  // 先取消旧卡片的 pending 朗读，防止声音乱窜
+  cancelPendingSpeeches();
+  if(randomMode){
+    let pool=[];
+    D.forEach((w,i)=>{const n=errLib[w.c]||0;pool.push(...Array(n>0?Math.min(n*3+1,12):1).fill(i))});
+    idx=pool.length?(pool[Math.floor(Math.random()*pool.length)]):((idx+1)%D.length);
+  } else idx=(idx+1)%D.length;
+  render(idx);
+  autoSpeak();
+}
+
+// 自动朗读：切换卡片后触发，链式 onend 大字→[200ms]→词语1→词语2→词语3→句子
+function prev(){cancelPendingSpeeches();if(randomMode)return;idx=(idx-1+D.length)%D.length;render(idx);autoSpeak()}
+function tMode(){randomMode=!randomMode;$('#mbtn').textContent=randomMode?'🔀 随机':'📋 顺序'}
+
+// ============================================================
+//  特效
+// ============================================================
+function showT(msg,cls){const t=$('#toast');t.textContent=msg;t.className='toast '+cls;void t.offsetWidth;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600)}
+
+// 魔法撒金粉音效（Web Audio API，无需外部文件）
+function playMagicSparkle(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    // 生成3组高频 sparkle 音效（像魔法棒撒粉）
+    const sparkles=[
+      {t:0,   f:3200, d:0.08},
+      {t:0.12,f:4000, d:0.06},
+      {t:0.22,f:2800, d:0.10},
+      {t:0.36,f:4500, d:0.05},
+      {t:0.45,f:3600, d:0.08},
+      {t:0.58,f:5000, d:0.04},
+    ];
+    sparkles.forEach(({t,f,d})=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.type='sine';
+      osc.frequency.setValueAtTime(f,ctx.currentTime+t);
+      osc.frequency.exponentialRampToValueAtTime(f*0.5,ctx.currentTime+t+d);
+      gain.gain.setValueAtTime(0.18,ctx.currentTime+t);
+      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+d);
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.start(ctx.currentTime+t);
+      osc.stop(ctx.currentTime+t+d+0.02);
+    });
+    // 加一个柔和的和弦尾音
+    const chord=[523,659,784]; // C5 E5 G5
+    const chordOsc=chord.map(freq=>{
+      const o=ctx.createOscillator();
+      const g=ctx.createGain();
+      o.type='sine';o.frequency.value=freq;
+      g.gain.setValueAtTime(0,ctx.currentTime+0.05);
+      g.gain.linearRampToValueAtTime(0.08,ctx.currentTime+0.12);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.7);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(ctx.currentTime+0.05);o.stop(ctx.currentTime+0.72);
+      return o;
+    });
+    // 延迟关闭 ctx
+    setTimeout(()=>{try{ctx.close()}catch(e){}},800);
+  }catch(e){console.log('[音效]',e.message)}
+}
+
+// 星星爆发特效（仅视觉，音效在用户点击后由 AudioContext 播放）
+function burst(){
+  const b=$('#burst');b.classList.remove('on');void b.offsetWidth;b.classList.add('on');
+  const ss=['⭐','✨','💫','🌟','🔮','🎉'];
+  for(let i=0;i<18;i++){
+    const s=document.createElement('div');s.className='sp';s.textContent=ss[i%ss.length];
+    s.style.left=(10+Math.random()*80)+'%';s.style.top=(20+Math.random()*50)+'%';
+    s.style.animationDelay=(Math.random()*0.4)+'s';
+    s.style.fontSize=(18+Math.random()*20)+'px';
+    b.appendChild(s);
+    setTimeout(()=>s.remove(),1600);
+  }
+  setTimeout(()=>b.classList.remove('on'),1600);
+}
+
+function updProg(){
+  const curChars=new Set(D.map(w=>w.c));
+  const n=[...Object.keys(learned)].filter(c=>curChars.has(c)).length;
+  $('#pfill').style.width=Math.round(n/D.length*100)+'%';
+}
+function elBadge(){const n=Object.keys(errLib).length;$('#elbd').textContent=n;$('#elcnt').textContent=n}
+
+function openEl(){
+  const ep=$('#ep'),el=$('#elist');el.innerHTML='';
+  const ec=Object.keys(errLib);
+  if(ec.length===0){el.innerHTML='<div class="noerr">🎉 太棒了！暂时没有错题！</div>'}
+  else{ec.forEach(ch=>{
+    const w=D.find(x=>x.c===ch);if(!w)return;
+    const d=document.createElement('div');d.className='ei';
+    d.innerHTML=`<div class="ec">${w.c}</div><div><div class="en">${w.w[0]}</div><div class="epy">${w.p}</div></div><div class="ef">错${errLib[ch]}次</div>`;
+    d.onclick=()=>{idx=D.indexOf(w);render(idx);closeEl()};
+    el.appendChild(d);
+  })}
+  ep.classList.add('open');
+}
+function closeEl(){$('#ep').classList.remove('open')}
+
+// ============================================================
+//  背景动画（bgN 和 bgTimer 在外层已声明）
+// ============================================================
+
+// 初始化背景（恢复：只用两张背景图交替，淡入淡出）
+function initBg(){
+  const imgs=[$('#bi0'),$('#bi1')];
+  if(imgs[0]&&imgs[0].complete){
+    imgs[0].classList.add('active');
+    bgTimer=setInterval(()=>{
+      imgs[bgN].classList.remove('active');
+      bgN=(bgN+1)%imgs.length;
+      imgs[bgN].classList.add('active');
+    },8000);
+  }
+
+  // 积木粒子
+  const fb=$('#fb');fb.innerHTML='';
+  const cs=['#00D4FF','#FF6B9D','#7BED9F','#FFA502','#A29BFE','#FFD700','#FF4757','#2ED573','#5352ED','#FD79A8'];
+  for(let i=0;i<14;i++){
+    const d=document.createElement('div');d.className='fblock';
+    const sz=25+Math.random()*45;
+    const r=4+Math.random()*8;
+    d.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*90}%;bottom:${-sz}px;background:${cs[i%cs.length]};animation-duration:${8+Math.random()*14}s;animation-delay:${Math.random()*8}S;border-radius:${r}px`;
+    fb.appendChild(d);
+  }
+
+  // 星空粒子
+  const sl=$('#sl');sl.innerHTML='';
+  for(let i=0;i<40;i++){
+    const d=document.createElement('div');d.className='sdot';
+    const sz=1+Math.random()*2.5;
+    d.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-duration:${3+Math.random()*5}s;animation-delay:${Math.random()*5}S`;
+    sl.appendChild(d);
+  }
+}
+
+// 切换套数时同步换背景（保证每套看到不同背景）
+function switchBgForSet(setNum){
+  const imgs=[$('#bi0'),$('#bi1')];
+  // 切换到另一张图（奇数套用 bi0，偶数套用 bi1）
+  const target=setNum%2;
+  imgs.forEach((img,i)=>{
+    if(!img) return;
+    if(i===target){
+      img.classList.add('active');
+    } else {
+      img.classList.remove('active');
+    }
+  });
+  // 重置8秒自动轮换
+  bgN=target;
+  if(bgTimer){clearInterval(bgTimer);bgTimer=null}
+  bgTimer=setInterval(()=>{
+    if(!imgs[0]) return;
+    imgs[bgN].classList.remove('active');
+    bgN=(bgN+1)%imgs.length;
+    imgs[bgN].classList.add('active');
+  },8000);
+}
+
+// ============================================================
+//  初始化
+// ============================================================
+initBg();
+initTTS();
+initSRDiag(); // 启动语音诊断
+loadSets();   // 异步加载6套字库，加载完成后 render(0)
+</script>
+</body>
+</html>
